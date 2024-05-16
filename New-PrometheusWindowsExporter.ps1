@@ -1,3 +1,6 @@
+#Requires -Version 5.1
+#Requires -RunAsAdministrator
+
 <#
     .SYNOPSIS
         Downloads and starts the Windows Exporter
@@ -39,8 +42,26 @@ param(
     [Parameter(Mandatory=$false)]
     [string]
     [ValidateNotNullOrEmpty()]
-    $TaskName = "Start Prometheus Windows Exporter"
+    $TaskName = "Start Prometheus Windows Exporter",
+
+    [Parameter(Mandatory=$false)]
+    [string]
+    [ValidateNotNullOrEmpty()]
+    $FirewallRuleName = "Allow TCP/9182 Inbound (Windows Exporter)"
 )
+
+if (-not (Get-NetFirewallRule -DisplayName $FirewallRuleName -ErrorAction SilentlyContinue))
+{
+    Write-Output "[+] Creating firewall rule '$FirewallRuleName'"
+    New-NetFirewallRule `
+        -DisplayName $FirewallRuleName `
+        -Description 'Allows access to http://<thismachine>:9182/metrics' `
+        -Direction Inbound `
+        -Protocol TCP `
+        -LocalPort 9182 `
+        -Action Allow `
+        -Profile Any | Out-Null
+}
 
 if (-not (Test-Path $TargetFolder))
 {
@@ -73,7 +94,9 @@ $collectors = @(
     'logical_disk',
     'net',
     'os',
-    'system'
+    'scheduled_task',
+    'system',
+    'time'
 )
 
 #
@@ -109,9 +132,14 @@ if ($existingTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction SilentlyC
     $existingTask | Stop-ScheduledTask
 }
 
+$arguments = @(
+    "--collectors.enabled ""$($collectors -join ',')""",
+    "--collector.scheduled_task.exclude=""/Microsoft/.+"""
+)
+
 $action = New-ScheduledTaskAction `
     -Execute (Join-Path $TargetFolder $TargetExecutable) `
-    -Argument "--collectors.enabled $($collectors -join ',')" `
+    -Argument ($arguments -join ' ') `
     -WorkingDirectory $TargetFolder
 
 $trigger = New-ScheduledTaskTrigger `
