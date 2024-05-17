@@ -27,18 +27,8 @@ param(
     [Parameter(Mandatory=$false)]
     [string]
     [ValidateNotNullOrEmpty()]
-    $WindowsExporterSource = "https://github.com/prometheus-community/windows_exporter/releases/download/v0.25.1/windows_exporter-0.25.1-amd64.exe",
-
-    [Parameter(Mandatory=$false)]
-    [string]
-    [ValidateNotNullOrEmpty()]
     $TargetFolder = "C:\ProgramData\Prometheus",
 
-    [Parameter(Mandatory=$false)]
-    [string]
-    [ValidateNotNullOrEmpty()]
-    $TargetExecutable = "windows_exporter-amd64.exe",
- 
     [Parameter(Mandatory=$false)]
     [string]
     [ValidateNotNullOrEmpty()]
@@ -69,20 +59,24 @@ if (-not (Test-Path $TargetFolder))
     New-Item -ItemType Directory -Path $TargetFolder -Force | Out-Null
 }
 
+#
+# determine the executable that we're looking for by 
+
 if (-not (Test-Path (Join-Path $TargetFolder $TargetExecutable)))
 {
-    Write-Output "[+] Downloading $($WindowsExporterSource.Substring(0, 60))..."
+    Write-Output "[+] Downloading latest windows exporter"
 
-    #
-    # workaround for older powershell versions that do not default to using
-    # TLS 1.2 or later causing requests to some sites (including github) to
-    # fail
-    #
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $downloadUrl = Invoke-RestMethod `
+        https://api.github.com/repos/prometheus-community/windows_exporter/releases/latest `
+    | Select-Object -ExpandProperty assets `
+    | Where-Object { $_.name.EndsWith("-amd64.exe")} `
+    | Select-Object -ExpandProperty browser_download_url
 
-    Invoke-WebRequest `
-        -Uri $WindowsExporterSource `
-        -OutFile (Join-Path $TargetFolder $TargetExecutable)
+    $filename = Split-Path $downloadUrl -Leaf
+
+    Start-BitsTransfer `
+        -Source $downloadUrl `
+        -Destination (Join-Path $TargetFolder $filename)
 }
 
 #
