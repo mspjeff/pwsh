@@ -60,23 +60,23 @@ if (-not (Test-Path $TargetFolder))
 }
 
 #
-# determine the executable that we're looking for by 
+# use github api to determine the latest stable release for windows exporter
+# and get the appropriate download url and filename
+#
+$downloadUrl = Invoke-RestMethod `
+    https://api.github.com/repos/prometheus-community/windows_exporter/releases/latest `
+| Select-Object -ExpandProperty assets `
+| Where-Object { $_.name.EndsWith("-amd64.exe")} `
+| Select-Object -ExpandProperty browser_download_url
 
-if (-not (Test-Path (Join-Path $TargetFolder $TargetExecutable)))
+$filename = Split-Path $downloadUrl -Leaf
+
+$filenameFull = (Join-Path $TargetFolder $filename)
+
+if (-not (Test-Path $filenameFull))
 {
     Write-Output "[+] Downloading latest windows exporter"
-
-    $downloadUrl = Invoke-RestMethod `
-        https://api.github.com/repos/prometheus-community/windows_exporter/releases/latest `
-    | Select-Object -ExpandProperty assets `
-    | Where-Object { $_.name.EndsWith("-amd64.exe")} `
-    | Select-Object -ExpandProperty browser_download_url
-
-    $filename = Split-Path $downloadUrl -Leaf
-
-    Start-BitsTransfer `
-        -Source $downloadUrl `
-        -Destination (Join-Path $TargetFolder $filename)
+    Start-BitsTransfer -Source $downloadUrl -Destination $filenameFull
 }
 
 #
@@ -132,7 +132,7 @@ $arguments = @(
 )
 
 $action = New-ScheduledTaskAction `
-    -Execute (Join-Path $TargetFolder $TargetExecutable) `
+    -Execute $filenameFull `
     -Argument ($arguments -join ' ') `
     -WorkingDirectory $TargetFolder
 
@@ -168,7 +168,7 @@ Start-ScheduledTask `
 # if everything worked as expected then the exporter should be running
 # and providing health information at http://localhost:9182/health
 #
-if (-not ((Invoke-WebRequest http://localhost:9182/health).StatusCode -eq 200))
+if (-not ((Invoke-RestMethod http://localhost:9182/health).status -eq 'ok'))
 {
     Write-Warning "Windows Exporter does not appear to be providing health info"
     return
