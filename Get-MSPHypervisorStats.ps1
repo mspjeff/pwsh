@@ -66,6 +66,15 @@ function Write-Info
 
 $info = Get-ComputerInfo
 
+Write-Host
+Write-Host ("Name............... {0}" -f $info.CsName)
+Write-Host ("Manufacturer....... {0}" -f $info.CsManufacturer)
+Write-Host ("Model.............. {0}" -f $info.CsModel)
+Write-Host ("Serial number...... {0}" -f $info.BiosSeralNumber)
+Write-Host ("Operating system... {0}" -f $info.OsName)
+Write-Host ("Installed.......... {0}" -f $info.WindowsInstallDateFromRegistry)
+Write-Host
+
 #
 # memory
 #
@@ -122,4 +131,33 @@ Get-Volume `
             $freeGB, `
             $sizeGB, `
             $percent)
+}
+
+#
+# individual VM stats
+#
+$vmList = @(Get-VM)
+
+Write-Host
+Write-Host ("Percentages for {0} virtual machine(s) are relative to other VMs:" -f $vmList.Length)
+
+$vmListMem = ($vmList | Measure-Object -Property MemoryAssigned -Sum).Sum
+$vmListCores = ($vmList | Measure-Object -Property ProcessorCount -Sum).Sum
+$vmListDisk = ($vmList | Get-VMHardDiskDrive | Get-VHD | Measure-Object -Property Size -Sum).Sum
+ 
+Get-VM | ForEach-Object {
+    Write-Host
+    Write-Host ("{0} ({1}):" -f $_.Name, $_.Notes)
+    $vmCorePercent = $_.ProcessorCount / $vmListCores * 100
+    Write-Info `
+        -Percent $vmCorePercent `
+        -Message ("{0} core(s)" -f $_.ProcessorCount)
+    $vmMemPercent = $_.MemoryAssigned / $vmListMem * 100
+    Write-Info `
+        -Percent $vmMemPercent `
+        -Message ("{0:N0} GB memory" -f ($_.MemoryAssigned / 1GB))
+    $vmDisk = ($_ | Get-VMHardDiskDrive | Get-VHD | Measure-Object -Property Size -Sum).Sum
+    Write-Info `
+        -Percent ($vmDisk / $vmListDisk * 100) `
+        -Message ("{0:N0} GB storage" -f ($vmDisk / 1GB))
 }
