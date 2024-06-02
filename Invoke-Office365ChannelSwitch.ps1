@@ -24,18 +24,25 @@ $cdn = Get-ItemProperty `
     -Name "CDNBaseUrl" | `
         Select-Object -ExpandProperty "CDNBaseUrl"
 
-if ($cdn -ne $mec)
+if ($cdn -eq $mac)
 {
-    Start-BitsTransfer `
-        -Source 'https://exdosa.blob.core.windows.net/public/office/setup.exe' `
-        -Destination "$env:temp\setup.exe"
+    Write-Host "Office is already on desired channel. Exiting."
+    return
+}
 
-    $xml | Out-File -FilePath "$env:temp\switchtomec.xml"
+Write-Host 'Downloading office deployment tool'
+Start-BitsTransfer `
+    -Source 'https://exdosa.blob.core.windows.net/public/office/setup.exe' `
+    -Destination "$env:temp\setup.exe"
 
-    & "$env:temp\setup.exe" /configure "$env:temp\switchtomec.xml"
+Write-Host 'Creating configuration file'
+$xml | Out-File -FilePath "$env:temp\switchtomec.xml"
 
-    if ($task = Get-ScheduledTask -TaskName "Office Automatic Updates 2.0" -TaskPath "\Microsoft\Office\" -ErrorAction SilentlyContinue)
-    {
-        $task | Start-ScheduledTask
-    }
+Write-Host "Invoking setup.exe /configure $env:temp\switchtomec.xml"
+& "$env:temp\setup.exe" /configure "$env:temp\switchtomec.xml"
+
+if ($task = Get-ScheduledTask -TaskName "Office Automatic Updates 2.0" -TaskPath "\Microsoft\Office\" -ErrorAction SilentlyContinue)
+{
+    Write-Host "Starting office automatic update task"
+    $task | Start-ScheduledTask
 }
