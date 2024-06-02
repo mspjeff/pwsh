@@ -24,7 +24,7 @@ $cdn = Get-ItemProperty `
     -Name "CDNBaseUrl" | `
         Select-Object -ExpandProperty "CDNBaseUrl"
 
-if ($cdn -eq $mac)
+if ($cdn -eq $mec)
 {
     Write-Host "Office is already on desired channel. Exiting."
     return
