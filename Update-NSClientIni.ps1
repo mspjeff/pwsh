@@ -51,3 +51,16 @@ param(
     $Address
 )
 
+#
+# services to be ignored (like)
+#
+# GoogleUpdaterService
+# GoogleUpdaterInternalService
+# cbdhsvc_
+# CDPUserSvc_
+# clr_optimization_v
+# OneSyncSvc_
+# WpnUserService_
+# 
+# (exact)
+#'BITS','CDPSvc','dbupdate','DoSvc','edgeupdate','GISvc','gpsvc','gupdate','IaasVmProvider','iDRAC Service Module','IntelAudioService','Intel(R) TPM Provisioning Service','MapsBroker','MMCSS','Net Driver HPZ12','Pml Driver HPZ12','RemoteRegistry','ShellHWDetection','sppsvc','StateRepository','SysmonLog','TabletInputService','tiledatamodelsvc','TrustedInstaller','VSS','WbioSrvc','wuauserv'
